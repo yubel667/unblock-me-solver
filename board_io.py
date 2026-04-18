@@ -31,7 +31,7 @@ def parse_from_text(text: str) -> BoardState:
         
         if is_horizontal:
             length = max_x - min_x + 1
-            horizontal_sliders.append(HorizontalSlider(Loc(min_y, min_x), length, is_target=(char == '0'), char=char))
+            horizontal_sliders.append(HorizontalSlider(Loc(min_y, min_x), length, is_target=(char == '*'), char=char))
         elif is_vertical:
             length = max_y - min_y + 1
             vertical_sliders.append(VerticalSlider(Loc(min_y, min_x), length, char=char))

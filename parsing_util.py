@@ -3,7 +3,7 @@ import os
 def normalize_level_path(input_path: str) -> str:
     """
     Normalizes a level identifier or path.
-    Example: 'starter/1' -> 'unblock-me-solver/levels/starter/0001.txt'
+    Example: 'starter/1' -> 'levels/starter/0001.txt' (if in unblock-me-solver dir)
     """
     # If it's already an existing file, use it as is
     if os.path.isfile(input_path):
@@ -19,19 +19,19 @@ def normalize_level_path(input_path: str) -> str:
         elif not num_str.endswith(".txt"):
             input_path = f"{category}/{num_str}.txt"
             
-    # List of possible base directories to search in
-    bases = ["unblock-me-solver/levels", "levels", "."]
+    # Possible base directories to search in
+    # Prioritize local 'levels' over 'unblock-me-solver/levels'
+    bases = ["levels", "unblock-me-solver/levels", "."]
     
     for base in bases:
         path = os.path.join(base, input_path)
         if os.path.isfile(path):
             return path
             
-    # If not found, return the path in unblock-me-solver/levels as default (useful for editor creating new files)
-    if not input_path.startswith("unblock-me-solver/levels"):
-        # Ensure we don't double up if levels is already in parts
-        if input_path.startswith("levels/"):
-            return os.path.join("unblock-me-solver", input_path)
-        return os.path.join("unblock-me-solver/levels", input_path)
+    # If not found (e.g. creating new level in editor)
+    # If we are inside unblock-me-solver, use 'levels/'
+    if os.path.basename(os.getcwd()) == "unblock-me-solver":
+        return os.path.join("levels", input_path)
     
-    return input_path
+    # Default to unblock-me-solver/levels if it exists or if we are at root
+    return os.path.join("unblock-me-solver/levels", input_path)

@@ -16,7 +16,7 @@ class LevelEditor:
     def __init__(self, file_path):
         self.file_path = file_path
         self.sliders = []
-        self.target_char = '0'
+        self.target_char = '*'
         
         if os.path.exists(self.file_path):
             try:
@@ -66,7 +66,7 @@ class LevelEditor:
                 occupied[(cell.y, cell.x)] = s.char
 
         if target_count != 1:
-            return False, "Must have exactly one target slider (0)"
+            return False, "Must have exactly one target slider (*)"
         
         if not isinstance(target_slider, HorizontalSlider):
             return False, "Target slider must be horizontal"
@@ -191,11 +191,11 @@ class LevelEditor:
                                     new_sliders = []
                                     selected_char = selected_slider.char
                                     
-                                    # We want the NEW target to have '0' and the OLD target to have the NEW target's old char
+                                    # We want the NEW target to have '*' and the OLD target to have the NEW target's old char
                                     for s in self.sliders:
                                         if s.char == selected_char:
                                             # This is the new target
-                                            new_sliders.append(HorizontalSlider(s.pos, s.length, True, '0'))
+                                            new_sliders.append(HorizontalSlider(s.pos, s.length, True, '*'))
                                         elif isinstance(s, HorizontalSlider) and s.is_target:
                                             # This is the old target
                                             new_sliders.append(HorizontalSlider(s.pos, s.length, False, selected_char))
@@ -257,6 +257,5 @@ class LevelEditor:
             clock.tick(60)
 
 if __name__ == "__main__":
-    level_id = sys.argv[1] if len(sys.argv) > 1 else "starter/new"
-    file_path = normalize_level_path(level_id)
+    file_path = sys.argv[1]
     LevelEditor(file_path).run()
