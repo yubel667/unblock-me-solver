@@ -91,9 +91,16 @@ class LevelEditor:
         return True, "Level saved!"
 
     def run(self):
+        # Extract category/level for better UI (e.g., starter/0001)
+        parts = self.file_path.split(os.sep)
+        if len(parts) >= 2:
+            level_name = os.path.join(parts[-2], os.path.basename(parts[-1])).replace(".txt", "")
+        else:
+            level_name = os.path.basename(self.file_path).replace(".txt", "")
+
         pygame.init()
         screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-        pygame.display.set_caption(f"Unblock Me Editor - {os.path.basename(self.file_path)}")
+        pygame.display.set_caption(f"Unblock Me Editor - {level_name}")
         clock = pygame.time.Clock()
         
         fonts = {
@@ -177,23 +184,24 @@ class LevelEditor:
                         if in_grid:
                             occupied = self.get_occupied_cells()
                             if (gy, gx) in occupied:
-                                new_target = occupied[(gy, gx)]
-                                # Swap target property
-                                new_sliders = []
-                                for s in self.sliders:
-                                    if s.char == new_target.char:
-                                        if isinstance(s, HorizontalSlider):
-                                            # Make this one target
-                                            new_sliders.append(HorizontalSlider(s.pos, s.length, True, s.char))
+                                selected_slider = occupied[(gy, gx)]
+                                if isinstance(selected_slider, HorizontalSlider) and not selected_slider.is_target:
+                                    old_target = next((s for s in self.sliders if isinstance(s, HorizontalSlider) and s.is_target), None)
+                                    
+                                    new_sliders = []
+                                    selected_char = selected_slider.char
+                                    
+                                    # We want the NEW target to have '0' and the OLD target to have the NEW target's old char
+                                    for s in self.sliders:
+                                        if s.char == selected_char:
+                                            # This is the new target
+                                            new_sliders.append(HorizontalSlider(s.pos, s.length, True, '0'))
+                                        elif isinstance(s, HorizontalSlider) and s.is_target:
+                                            # This is the old target
+                                            new_sliders.append(HorizontalSlider(s.pos, s.length, False, selected_char))
                                         else:
-                                            # Vertical can't be target, but we keep it
                                             new_sliders.append(s)
-                                    elif isinstance(s, HorizontalSlider) and s.is_target:
-                                        # Make old target non-target
-                                        new_sliders.append(HorizontalSlider(s.pos, s.length, False, s.char))
-                                    else:
-                                        new_sliders.append(s)
-                                self.sliders = new_sliders
+                                    self.sliders = new_sliders
                     elif event.key == pygame.K_ESCAPE:
                         pygame.quit()
                         return
@@ -229,7 +237,7 @@ class LevelEditor:
             color = status_color if status_msg else ((0, 255, 0) if valid else (200, 200, 200))
             
             # Draw UI without visualizer's default controls to save space
-            vis.draw_ui(screen, display_msg, os.path.basename(self.file_path), False, fonts)
+            vis.draw_ui(screen, display_msg, level_name, False, fonts)
             
             # Dedicated Instructions area for Editor
             inst_font = fonts['ctrl']

@@ -5,7 +5,7 @@ from board import BoardState, Loc, HorizontalSlider, VerticalSlider, BOARD_SIZE
 
 # Colors
 BOARD_COLOR = (101, 67, 33)    # Dark Brown
-SLIDER_COLOR = (188, 143, 143) # Rosy Brown (Oak wood-ish)
+SLIDER_COLOR = (186, 140, 99)  # Authentic Wood (Light Brown/Oak)
 TARGET_COLOR = (200, 0, 0)     # Red
 GRID_COLOR = (70, 45, 20)      # Darker Brown
 TEXT_COLOR = (240, 240, 240)
@@ -87,13 +87,14 @@ def draw_ui(screen, status_text, level_id, show_controls, fonts):
     
     # Level ID
     if level_id:
-        img = fonts['title'].render(f"Unblock Me: Level {level_id}", True, TEXT_COLOR)
+        img = fonts['title'].render(f"Unblock Me: {level_id}", True, TEXT_COLOR)
         screen.blit(img, (MARGIN, 15))
 
     if show_controls:
         controls = [
-            "ENTER/SPACE: Toggle Auto-play",
-            "RIGHT/LEFT: Step next/prev",
+            "ENTER: Toggle Auto-play",
+            "SPACE: Animate Next Step",
+            "RIGHT/LEFT: Jump Next/Prev",
             "R: Reset",
             "ESC: Quit"
         ]
@@ -157,6 +158,7 @@ def run_visualizer(initial_state: BoardState, solution: Optional[List[Dict]], au
     running = True
     step_idx = 0
     paused = not autoplay
+    single_step = False
     anim_start_time = time.time()
     clock = pygame.time.Clock()
     
@@ -171,23 +173,34 @@ def run_visualizer(initial_state: BoardState, solution: Optional[List[Dict]], au
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
-                elif event.key in [pygame.K_SPACE, pygame.K_RETURN]:
+                elif event.key == pygame.K_RETURN: # Toggle Autoplay
                     if is_final:
                         running = False
                     else:
                         paused = not paused
+                        single_step = False
+                        anim_start_time = time.time()
+                elif event.key == pygame.K_SPACE: # Play next move with animation
+                    if is_final:
+                        running = False
+                    elif paused:
+                        paused = False
+                        single_step = True
                         anim_start_time = time.time()
                 elif event.key == pygame.K_RIGHT:
                     if step_idx < len(states) - 1:
                         step_idx += 1
-                        paused = True
+                    paused = True
+                    single_step = False
                 elif event.key == pygame.K_LEFT:
                     if step_idx > 0:
                         step_idx -= 1
-                        paused = True
+                    paused = True
+                    single_step = False
                 elif event.key == pygame.K_r:
                     step_idx = 0
                     paused = True
+                    single_step = False
 
         alpha = 0.0
         curr_state = states[step_idx]
@@ -201,6 +214,9 @@ def run_visualizer(initial_state: BoardState, solution: Optional[List[Dict]], au
             if elapsed >= duration + POST_MOVE_DELAY:
                 step_idx += 1
                 anim_start_time = time.time()
+                if single_step:
+                    paused = True
+                    single_step = False
                 is_final = (step_idx >= len(states) - 1)
                 curr_state = states[step_idx]
                 move_info = None

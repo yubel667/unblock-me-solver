@@ -32,7 +32,13 @@ def main():
     print("Searching for solution...")
     solution, visited_count, duration = solve(initial_state)
 
-    level_name = os.path.basename(file_path).replace(".txt", "")
+    # Extract category/level for better UI (e.g., starter/0001)
+    # file_path is like .../levels/starter/0001.txt
+    parts = file_path.split(os.sep)
+    if len(parts) >= 2:
+        level_name = os.path.join(parts[-2], os.path.basename(parts[-1])).replace(".txt", "")
+    else:
+        level_name = os.path.basename(file_path).replace(".txt", "")
 
     if solution is None:
         print(f"No solution found. (Visited {visited_count} states in {duration:.4f}s)")
