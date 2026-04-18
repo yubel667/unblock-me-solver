@@ -16,14 +16,23 @@ class LevelEditor:
     def __init__(self, file_path):
         self.file_path = file_path
         self.sliders = []
-        self.target_char = '*'
         
         if os.path.exists(self.file_path):
             try:
                 with open(self.file_path, 'r') as f:
                     content = f.read()
                 state = board_io.parse_from_text(content)
-                self.sliders = list(state.horizontal_sliders) + list(state.vertical_sliders)
+                raw_sliders = list(state.horizontal_sliders) + list(state.vertical_sliders)
+                
+                # Internal normalization: Target '*' becomes '0' internally for editing
+                # (or any available char) to avoid having '*' as a regular char.
+                for s in raw_sliders:
+                    if isinstance(s, HorizontalSlider) and s.char == '*':
+                        # Use '0' as a preferred internal char for target if it doesn't conflict
+                        # If conflict, get_next_char will handle new sliders anyway.
+                        self.sliders.append(HorizontalSlider(s.pos, s.length, True, '0'))
+                    else:
+                        self.sliders.append(s)
             except Exception as e:
                 print(f"Error loading level: {e}")
 
@@ -39,10 +48,8 @@ class LevelEditor:
 
     def get_next_char(self):
         chars = set(s.char for s in self.sliders)
-        if self.target_char not in chars:
-            return self.target_char
-        
-        for c in "123456789abcdefghijklmnopqrstuvwxyz":
+        # Sequence of potential chars, excluding '*'
+        for c in "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
             if c not in chars:
                 return c
         return "?"
@@ -50,13 +57,12 @@ class LevelEditor:
     def check_valid(self):
         occupied = {}
         target_count = 0
-        target_slider = None
         
         for s in self.sliders:
-            is_target = isinstance(s, HorizontalSlider) and s.is_target
-            if is_target:
+            if isinstance(s, HorizontalSlider) and s.is_target:
                 target_count += 1
-                target_slider = s
+                if s.pos.y != 2:
+                    return False, "Target slider must be on row 2"
             
             for cell in s.get_cells():
                 if not (0 <= cell.y < BOARD_SIZE and 0 <= cell.x < BOARD_SIZE):
@@ -66,13 +72,7 @@ class LevelEditor:
                 occupied[(cell.y, cell.x)] = s.char
 
         if target_count != 1:
-            return False, "Must have exactly one target slider (*)"
-        
-        if not isinstance(target_slider, HorizontalSlider):
-            return False, "Target slider must be horizontal"
-        
-        if target_slider.pos.y != 2:
-            return False, "Target slider must be on row 2 (exit row)"
+            return False, "Must have exactly one target slider"
 
         return True, "Ready to save (S)"
 
@@ -81,8 +81,18 @@ class LevelEditor:
         if not valid:
             return False, f"Cannot Save: {msg}"
         
-        h_sliders = [s for s in self.sliders if isinstance(s, HorizontalSlider)]
-        v_sliders = [s for s in self.sliders if isinstance(s, VerticalSlider)]
+        h_sliders = []
+        v_sliders = []
+        
+        for s in self.sliders:
+            # ONLY at save time, we convert the target's char to '*'
+            is_target = isinstance(s, HorizontalSlider) and s.is_target
+            save_char = '*' if is_target else s.char
+            
+            if isinstance(s, HorizontalSlider):
+                h_sliders.append(HorizontalSlider(s.pos, s.length, s.is_target, save_char))
+            else:
+                v_sliders.append(VerticalSlider(s.pos, s.length, save_char))
         
         state = BoardState(h_sliders, v_sliders)
         os.makedirs(os.path.dirname(self.file_path), exist_ok=True)
@@ -114,7 +124,6 @@ class LevelEditor:
         
         while True:
             mouse_pos = pygame.mouse.get_pos()
-            # Convert mouse to grid
             gx = (mouse_pos[0] - vis.MARGIN) // vis.TILE_SIZE
             gy = (mouse_pos[1] - vis.MARGIN) // vis.TILE_SIZE
             in_grid = 0 <= gx < BOARD_SIZE and 0 <= gy < BOARD_SIZE
@@ -144,14 +153,14 @@ class LevelEditor:
                         y1, x1 = self.drag_start
                         y2, x2 = gy, gx
                         
-                        # Minimum length 2
                         if y1 == y2 and abs(x2 - x1) >= 1: # Horizontal
                             start_x = min(x1, x2)
                             length = abs(x2 - x1) + 1
                             char = self.get_next_char()
                             if char != "?":
-                                is_target = (char == self.target_char)
-                                new_slider = HorizontalSlider(Loc(y1, start_x), length, is_target, char)
+                                # Automatically make it target if none exists
+                                has_target = any(isinstance(s, HorizontalSlider) and s.is_target for s in self.sliders)
+                                new_slider = HorizontalSlider(Loc(y1, start_x), length, not has_target, char)
                                 self.sliders.append(new_slider)
                         elif x1 == x2 and abs(y2 - y1) >= 1: # Vertical
                             start_y = min(y1, y2)
@@ -185,20 +194,13 @@ class LevelEditor:
                             occupied = self.get_occupied_cells()
                             if (gy, gx) in occupied:
                                 selected_slider = occupied[(gy, gx)]
-                                if isinstance(selected_slider, HorizontalSlider) and not selected_slider.is_target:
-                                    old_target = next((s for s in self.sliders if isinstance(s, HorizontalSlider) and s.is_target), None)
-                                    
+                                if isinstance(selected_slider, HorizontalSlider):
                                     new_sliders = []
-                                    selected_char = selected_slider.char
-                                    
-                                    # We want the NEW target to have '*' and the OLD target to have the NEW target's old char
                                     for s in self.sliders:
-                                        if s.char == selected_char:
-                                            # This is the new target
-                                            new_sliders.append(HorizontalSlider(s.pos, s.length, True, '*'))
+                                        if s.char == selected_slider.char:
+                                            new_sliders.append(HorizontalSlider(s.pos, s.length, True, s.char))
                                         elif isinstance(s, HorizontalSlider) and s.is_target:
-                                            # This is the old target
-                                            new_sliders.append(HorizontalSlider(s.pos, s.length, False, selected_char))
+                                            new_sliders.append(HorizontalSlider(s.pos, s.length, False, s.char))
                                         else:
                                             new_sliders.append(s)
                                     self.sliders = new_sliders
@@ -208,38 +210,31 @@ class LevelEditor:
 
             # Drawing
             vis.draw_board_base(screen)
-            
-            # Temporary state for visualization
             h_sliders = [s for s in self.sliders if isinstance(s, HorizontalSlider)]
             v_sliders = [s for s in self.sliders if isinstance(s, VerticalSlider)]
             vis.draw_sliders(screen, BoardState(h_sliders, v_sliders))
 
-            # Draw drag preview
             if self.drag_start and self.drag_current:
                 y1, x1 = self.drag_start
                 y2, x2 = self.drag_current
-                if y1 == y2 and x2 != x1: # Horizontal preview
+                if y1 == y2 and x2 != x1:
                     px = vis.MARGIN + min(x1, x2) * vis.TILE_SIZE + 4
                     py = vis.MARGIN + y1 * vis.TILE_SIZE + 4
                     width = (abs(x2 - x1) + 1) * vis.TILE_SIZE - 8
                     height = vis.TILE_SIZE - 8
                     pygame.draw.rect(screen, (200, 200, 200), (px, py, width, height), 2, 8)
-                elif x1 == x2 and y2 != y1: # Vertical preview
+                elif x1 == x2 and y2 != y1:
                     px = vis.MARGIN + x1 * vis.TILE_SIZE + 4
                     py = vis.MARGIN + min(y1, y2) * vis.TILE_SIZE + 4
                     width = vis.TILE_SIZE - 8
                     height = (abs(y2 - y1) + 1) * vis.TILE_SIZE - 8
                     pygame.draw.rect(screen, (200, 200, 200), (px, py, width, height), 2, 8)
 
-            # UI Text
             valid, msg = self.check_valid()
             display_msg = status_msg if status_msg else msg
             color = status_color if status_msg else ((0, 255, 0) if valid else (200, 200, 200))
-            
-            # Draw UI without visualizer's default controls to save space
             vis.draw_ui(screen, display_msg, level_name, False, fonts)
             
-            # Dedicated Instructions area for Editor
             inst_font = fonts['ctrl']
             instructions = [
                 "Drag: Create Slider",
@@ -250,12 +245,11 @@ class LevelEditor:
             ]
             for i, line in enumerate(instructions):
                 img = inst_font.render(line, True, (160, 160, 160))
-                # Adjust x to start earlier and prevent overflow
                 screen.blit(img, (vis.MARGIN + 280, vis.MARGIN + BOARD_SIZE * vis.TILE_SIZE + 10 + i * 18))
 
             pygame.display.flip()
             clock.tick(60)
 
 if __name__ == "__main__":
-    file_path = sys.argv[1]
-    LevelEditor(file_path).run()
+    file_path = sys.argv[1] if len(sys.argv) > 1 else "starter/new"
+    LevelEditor(normalize_level_path(file_path)).run()
