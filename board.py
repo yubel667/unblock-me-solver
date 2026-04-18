@@ -18,6 +18,7 @@ class HorizontalSlider:
     pos: Loc
     length: int
     is_target: bool = False
+    char: str = "0"
 
     def get_identifier(self):
         return f"H{self.pos.y}{self.pos.x}{self.length}{'T' if self.is_target else ''}"
@@ -29,6 +30,7 @@ class HorizontalSlider:
 class VerticalSlider:
     pos: Loc
     length: int
+    char: str = "1"
 
     def get_identifier(self):
         return f"V{self.pos.y}{self.pos.x}{self.length}"
@@ -93,13 +95,13 @@ class BoardState:
             # Move Left
             if s.pos.x > 0 and (s.pos.y, s.pos.x - 1) not in occupied:
                 new_sliders = list(self.horizontal_sliders)
-                new_sliders[i] = HorizontalSlider(Loc(s.pos.y, s.pos.x - 1), s.length, s.is_target)
+                new_sliders[i] = HorizontalSlider(Loc(s.pos.y, s.pos.x - 1), s.length, s.is_target, s.char)
                 neighbors.append(BoardState(new_sliders, list(self.vertical_sliders)))
             
             # Move Right
             if s.pos.x + s.length < BOARD_SIZE and (s.pos.y, s.pos.x + s.length) not in occupied:
                 new_sliders = list(self.horizontal_sliders)
-                new_sliders[i] = HorizontalSlider(Loc(s.pos.y, s.pos.x + 1), s.length, s.is_target)
+                new_sliders[i] = HorizontalSlider(Loc(s.pos.y, s.pos.x + 1), s.length, s.is_target, s.char)
                 neighbors.append(BoardState(new_sliders, list(self.vertical_sliders)))
 
         # Try moving vertical sliders
@@ -107,13 +109,13 @@ class BoardState:
             # Move Up
             if s.pos.y > 0 and (s.pos.y - 1, s.pos.x) not in occupied:
                 new_v_sliders = list(self.vertical_sliders)
-                new_v_sliders[i] = VerticalSlider(Loc(s.pos.y - 1, s.pos.x), s.length)
+                new_v_sliders[i] = VerticalSlider(Loc(s.pos.y - 1, s.pos.x), s.length, s.char)
                 neighbors.append(BoardState(list(self.horizontal_sliders), new_v_sliders))
             
             # Move Down
             if s.pos.y + s.length < BOARD_SIZE and (s.pos.y + s.length, s.pos.x) not in occupied:
                 new_v_sliders = list(self.vertical_sliders)
-                new_v_sliders[i] = VerticalSlider(Loc(s.pos.y + 1, s.pos.x), s.length)
+                new_v_sliders[i] = VerticalSlider(Loc(s.pos.y + 1, s.pos.x), s.length, s.char)
                 neighbors.append(BoardState(list(self.horizontal_sliders), new_v_sliders))
 
         return neighbors
