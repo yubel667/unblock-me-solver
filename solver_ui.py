@@ -4,17 +4,18 @@ import os
 from board_io import parse_from_text
 from solver import solve
 from visualizer import run_visualizer
+from parsing_util import normalize_level_path
 
 def main():
     parser = argparse.ArgumentParser(description="Unblock Me Solver Visualizer")
-    parser.add_argument("level_path", nargs="?", default="unblock-me-solver/levels/starter/0001.txt", help="Path to the level file")
+    parser.add_argument("level_id", nargs="?", default="starter/1", help="Level ID (e.g., starter/1)")
     parser.add_argument("--autoplay", action="store_true", help="Start in auto-play mode")
     parser.add_argument("--no-controls", action="store_false", dest="show_controls", help="Hide controls text")
     parser.set_defaults(show_controls=True)
     
     args = parser.parse_args()
     
-    file_path = args.level_path
+    file_path = normalize_level_path(args.level_id)
     if not os.path.exists(file_path):
         print(f"Error: Level file {file_path} not found.")
         return

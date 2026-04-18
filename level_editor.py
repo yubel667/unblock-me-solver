@@ -6,6 +6,7 @@ from typing import List, Optional, Tuple
 from board import Loc, HorizontalSlider, VerticalSlider, BoardState, BOARD_SIZE
 import board_io
 import visualizer as vis
+from parsing_util import normalize_level_path
 
 # UI Constants
 WINDOW_WIDTH = vis.SCREEN_WIDTH
@@ -227,23 +228,27 @@ class LevelEditor:
             display_msg = status_msg if status_msg else msg
             color = status_color if status_msg else ((0, 255, 0) if valid else (200, 200, 200))
             
-            vis.draw_ui(screen, display_msg, os.path.basename(self.file_path), True, fonts)
+            # Draw UI without visualizer's default controls to save space
+            vis.draw_ui(screen, display_msg, os.path.basename(self.file_path), False, fonts)
             
-            # Additional Instructions for Editor
+            # Dedicated Instructions area for Editor
             inst_font = fonts['ctrl']
             instructions = [
-                "Drag to create Slider",
-                "X or Right-Click: Remove",
-                "T: Make Slider Target",
-                "S: Save and Exit"
+                "Drag: Create Slider",
+                "X / Right-Click: Remove",
+                "T: Set Target",
+                "S: Save & Exit",
+                "ESC: Quit"
             ]
             for i, line in enumerate(instructions):
-                img = inst_font.render(line, True, (180, 180, 180))
-                screen.blit(img, (vis.MARGIN + 450, vis.MARGIN + BOARD_SIZE * vis.TILE_SIZE + 10 + i * 20))
+                img = inst_font.render(line, True, (160, 160, 160))
+                # Adjust x to start earlier and prevent overflow
+                screen.blit(img, (vis.MARGIN + 280, vis.MARGIN + BOARD_SIZE * vis.TILE_SIZE + 10 + i * 18))
 
             pygame.display.flip()
             clock.tick(60)
 
 if __name__ == "__main__":
-    file_path = sys.argv[1] if len(sys.argv) > 1 else "unblock-me-solver/levels/new_level.txt"
+    level_id = sys.argv[1] if len(sys.argv) > 1 else "starter/new"
+    file_path = normalize_level_path(level_id)
     LevelEditor(file_path).run()

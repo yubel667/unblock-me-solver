@@ -5,6 +5,7 @@ import sys
 from typing import List, Tuple, Optional, Dict
 from board import BoardState, Loc
 from board_io import parse_from_text
+from parsing_util import normalize_level_path
 
 def solve(initial_state: BoardState) -> Tuple[Optional[List[Dict]], int, float]:
     start_time = time.time()
@@ -76,16 +77,17 @@ def find_move(old_state: BoardState, new_state: BoardState) -> Dict:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 solver.py <question_file>")
+        print("Usage: python3 solver.py <level_id>")
         return
 
-    file_path = sys.argv[1]
+    level_id = sys.argv[1]
+    file_path = normalize_level_path(level_id)
     try:
         with open(file_path, 'r') as f:
             content = f.read()
         initial_state = parse_from_text(content)
     except Exception as e:
-        print(f"Error loading board: {e}")
+        print(f"Error loading board from {file_path}: {e}")
         return
 
     solution, visited_count, duration = solve(initial_state)
