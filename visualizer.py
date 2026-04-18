@@ -160,6 +160,8 @@ def run_visualizer(initial_state: BoardState, solution: Optional[List[Dict]], au
     anim_start_time = time.time()
     clock = pygame.time.Clock()
     
+    POST_MOVE_DELAY = 0.3
+
     while running:
         is_final = (step_idx >= len(states) - 1)
         
@@ -196,13 +198,18 @@ def run_visualizer(initial_state: BoardState, solution: Optional[List[Dict]], au
             duration = move_info["duration"]
             elapsed = time.time() - anim_start_time
             
-            if elapsed >= duration:
+            if elapsed >= duration + POST_MOVE_DELAY:
                 step_idx += 1
                 anim_start_time = time.time()
                 is_final = (step_idx >= len(states) - 1)
                 curr_state = states[step_idx]
-                move_info = None # Reset move_info as we just reached the state
+                move_info = None
+            elif elapsed >= duration:
+                # Finished animation, in delay period
+                curr_state = states[step_idx + 1]
+                move_info = None
             else:
+                # In animation period
                 alpha = min(1.0, elapsed / duration)
 
         # Draw
